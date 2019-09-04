@@ -12,20 +12,18 @@ let mut file = File::open("q3_cor.gci").expect("Can't open file!");
     file.read_to_end(&mut buffer)
         .expect("Couldn't read file.");
 
-    // Create buffers for questlogs (includes checksums)
-    //let mut qlog_1_buffer = &mut buffer[16456..19164]; 
-    //let mut qlog_2_buffer = &mut buffer[19164..21872];
-    //let mut qlog_3_buffer = &mut buffer[21872..24580];
-
-    // Shadow copy buffers
-    // let qlog_1_shadow_buffer = &buffer[24648..27356];
-    // let qlog_2_shadow_buffer = &buffer[27356..30064];
-    // let qlog_3_shadow_buffer = &buffer[30064..32772];
-
+    // fix regular quest logs
     fix_quest_log(&mut buffer[16456..19164]);
     fix_quest_log(&mut buffer[19164..21872]);
     fix_quest_log(&mut buffer[21872..24580]);
 
+    // fix shadow copies
+    fix_quest_log(&mut buffer[24648..27356]);
+    fix_quest_log(&mut buffer[27356..30064]);
+    fix_quest_log(&mut buffer[30064..32772]);
+
+    let mut f = File::create("output.gci").expect("Unable to create file");                                                                                                                                                             
+    f.write_all(&buffer).expect("Unable to write data");                                                                                                                            
 }
 
 fn build_checksum(buf: &[u8]) -> [u8; 8] {
@@ -80,6 +78,7 @@ fn fix_quest_log(quest_log_buffer: &mut [u8]) {
         if &current_checksum == &new_checksum {
             // do nothing
         } else { 
+            // set the new checksum
             quest_log_buffer[2700] = new_checksum[0];
             quest_log_buffer[2701] = new_checksum[1];
             quest_log_buffer[2702] = new_checksum[2];
@@ -90,6 +89,4 @@ fn fix_quest_log(quest_log_buffer: &mut [u8]) {
             quest_log_buffer[2707] = new_checksum[7];
         }
     }
-
-    println!("Fixed: {:?}", &quest_log_buffer[2700..2708]);
 }
