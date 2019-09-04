@@ -1,11 +1,19 @@
 use std::fs::File;
 use std::io::prelude::*;
-//use std:io::Write;
+use std::env;
 use std::mem;
 use byteorder::{BigEndian, WriteBytesExt};
 
 fn main() {
-let mut file = File::open("q3_cor.gci").expect("Can't open file!");
+    let args: Vec<String> = env::args().collect();
+    println!("{:?}", args);
+
+    match &args[..] {
+        ["--clobber", second] => println!("The second element is {}", second),
+        _ => {},
+    }
+
+    let mut file = File::open("q3_cor.gci").expect("Can't open file!");
     let mut buffer = Vec::new();
 
     // Read the file into vector
@@ -22,14 +30,13 @@ let mut file = File::open("q3_cor.gci").expect("Can't open file!");
     fix_quest_log(&mut buffer[27356..30064]);
     fix_quest_log(&mut buffer[30064..32772]);
 
+    // write the corrected buf to file
     let mut f = File::create("output.gci").expect("Unable to create file");                                                                                                                                                             
     f.write_all(&buffer).expect("Unable to write data");                                                                                                                            
 }
 
 fn build_checksum(buf: &[u8]) -> [u8; 8] {
     let mut sum: u32 = 0;
-    let mut x: u32 = 0;
-    let mut done = false;
 
     // additive sum for first four bytes
     for x in 0..2700 {
@@ -66,27 +73,25 @@ fn build_checksum(buf: &[u8]) -> [u8; 8] {
 
 fn fix_quest_log(quest_log_buffer: &mut [u8]) {
 
-    let mut current_checksum = &quest_log_buffer[2700..2708];
-    let mut new_checksum = build_checksum(quest_log_buffer);
+    let current_checksum = &quest_log_buffer[2700..2708];
+    let new_checksum = build_checksum(quest_log_buffer);
 
     // Debug
     println!("Old checksum: {:?}", &current_checksum);
     println!("New checksum: {:?}", &new_checksum);
 
     // Compare checksums
-    {
-        if &current_checksum == &new_checksum {
-            // do nothing
-        } else { 
-            // set the new checksum
-            quest_log_buffer[2700] = new_checksum[0];
-            quest_log_buffer[2701] = new_checksum[1];
-            quest_log_buffer[2702] = new_checksum[2];
-            quest_log_buffer[2703] = new_checksum[3];
-            quest_log_buffer[2704] = new_checksum[4];
-            quest_log_buffer[2705] = new_checksum[5];
-            quest_log_buffer[2706] = new_checksum[6];
-            quest_log_buffer[2707] = new_checksum[7];
-        }
+    if &current_checksum == &new_checksum {
+        // do nothing
+    } else { 
+        // set the new checksum
+        quest_log_buffer[2700] = new_checksum[0];
+        quest_log_buffer[2701] = new_checksum[1];
+        quest_log_buffer[2702] = new_checksum[2];
+        quest_log_buffer[2703] = new_checksum[3];
+        quest_log_buffer[2704] = new_checksum[4];
+        quest_log_buffer[2705] = new_checksum[5];
+        quest_log_buffer[2706] = new_checksum[6];
+        quest_log_buffer[2707] = new_checksum[7];
     }
 }
