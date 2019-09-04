@@ -1,14 +1,24 @@
+extern crate clap;
+
 use std::fs::File;
 use std::io::prelude::*;
 use std::env;
 use std::mem;
+use std::process;
 use byteorder::{BigEndian, WriteBytesExt};
+use clap::App;
 
 fn main() {
-    let args: Vec<String> = env::args().collect();
-    let config = Config::new(&args);
+    let app = App::new("gciparser")
+        .version("0.1")
+        .author("<test@test.com>")
+        .about("Parses GCI Files")
+        .args_from_usage("-f, --filename=
+        -c, --clobber 'Only print the NUMBER most recent posts'");
 
-    let mut file = File::open("q3_cor.gci").expect("Can't open file!");
+    let matches = app.get_matches();
+
+    let mut file = File::open(matches.filename).expect("Can't open file!");
     let mut buffer = Vec::new();
 
     // Read the file into vector
@@ -92,18 +102,18 @@ fn fix_quest_log(quest_log_buffer: &mut [u8]) {
 }
 
 struct Config {
-    query: String,
     filename: String,
+    clobber: String,
 }
 
 impl Config {
     fn new(args: &[String]) -> Result<Config, &'static str> {
-        if args.len() < 3{
-            panic!("not enough arguments");
+        if args.len() < 2 {
+            return Err("not enough arguments");
         }
-        let query = args[1].clone();
-        let filename = args[2].clone();
+        let filename = args[1].clone();
+        let clobber = args[2].clone();
 
-        Config { query, filename }
+        Ok(Config { filename, clobber })
     }
 }
