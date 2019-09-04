@@ -6,12 +6,7 @@ use byteorder::{BigEndian, WriteBytesExt};
 
 fn main() {
     let args: Vec<String> = env::args().collect();
-    println!("{:?}", args);
-
-    match &args[..] {
-        ["--clobber", second] => println!("The second element is {}", second),
-        _ => {},
-    }
+    let config = Config::new(&args);
 
     let mut file = File::open("q3_cor.gci").expect("Can't open file!");
     let mut buffer = Vec::new();
@@ -93,5 +88,22 @@ fn fix_quest_log(quest_log_buffer: &mut [u8]) {
         quest_log_buffer[2705] = new_checksum[5];
         quest_log_buffer[2706] = new_checksum[6];
         quest_log_buffer[2707] = new_checksum[7];
+    }
+}
+
+struct Config {
+    query: String,
+    filename: String,
+}
+
+impl Config {
+    fn new(args: &[String]) -> Result<Config, &'static str> {
+        if args.len() < 3{
+            panic!("not enough arguments");
+        }
+        let query = args[1].clone();
+        let filename = args[2].clone();
+
+        Config { query, filename }
     }
 }
