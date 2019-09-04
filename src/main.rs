@@ -13,96 +13,83 @@ let mut file = File::open("q3_cor.gci").expect("Can't open file!");
         .expect("Couldn't read file.");
 
     // Create buffers for questlogs (includes checksums)
-    let mut qlog_1_buffer = &buffer[16456..19164]; 
-    let mut qlog_2_buffer = &buffer[19164..21872];
-    let mut qlog_3_buffer = &buffer[21872..24580];
-    
-    // Questlog checksums
-    let mut qlog_1_checksum = &buffer[19156..19164];
-    let mut qlog_2_checksum = &buffer[21864..21872];
-    let mut qlog_3_checksum = &buffer[24572..24580];
+    //let mut qlog_1_buffer = &mut buffer[16456..19164]; 
+    //let mut qlog_2_buffer = &mut buffer[19164..21872];
+    //let mut qlog_3_buffer = &mut buffer[21872..24580];
 
     // Shadow copy buffers
     // let qlog_1_shadow_buffer = &buffer[24648..27356];
     // let qlog_2_shadow_buffer = &buffer[27356..30064];
     // let qlog_3_shadow_buffer = &buffer[30064..32772];
-    // let qlog_1_shadow_checksum = &buffer[27348..27356];
-    // let qlog_2_shadow_checksum = &buffer[30056..32764];
-    // let qlog_3_shadow_checksum = &buffer[32764..32772];
 
-    let mut qlog_1_status = check_quest_log(qlog_1_buffer, qlog_1_checksum);
-    let mut qlog_1_status = check_quest_log(qlog_2_buffer, qlog_2_checksum);
-    let mut qlog_1_status = check_quest_log(qlog_3_buffer, qlog_3_checksum);
-
+    fix_quest_log(&mut buffer[16456..19164]);
+    fix_quest_log(&mut buffer[19164..21872]);
+    fix_quest_log(&mut buffer[21872..24580]);
 
 }
 
-fn build_checksum(buf: &[u8]) -> Vec<u8> {
+fn build_checksum(buf: &[u8]) -> [u8; 8] {
     let mut sum: u32 = 0;
     let mut x: u32 = 0;
-    let mut done = false; // mut done: bool
+    let mut done = false;
 
-    // Additive sum for first four bytes
+    // additive sum for first four bytes
     for x in 0..2700 {
-        sum += (buf[x as usize] as u32);
-        //println!("index: {0}, value: {1}", x, sum);
+        sum += buf[x as usize] as u32;
     }   
 
+    // negative of additive sum + quest log length (2700 bytes)
     let neg_sum: u32 = (sum + 2700).wrapping_neg();
     let mut be_sum = [0u8; mem::size_of::<u32>()];
+    let mut be_neg_sum = [0u8; mem::size_of::<u32>()];
+
+    // convert to big endian
     be_sum.as_mut()
         .write_u32::<BigEndian>(sum)
         .expect("Unable to write");
 
-    let mut be_neg_sum = [0u8; mem::size_of::<u32>()];
     be_neg_sum.as_mut()
         .write_u32::<BigEndian>(neg_sum)
         .expect("Unable to write");
 
-    for i in &be_sum {
-        println!("{:X}", i);
-    }
+    // combine (can be optimized l8r)
+    let mut checksum: [u8; 8] = [0; 8];
+    checksum[0] = be_sum[0];
+    checksum[1] = be_sum[1];
+    checksum[2] = be_sum[2];
+    checksum[3] = be_sum[3];
+    checksum[4] = be_neg_sum[0];
+    checksum[5] = be_neg_sum[1];
+    checksum[6] = be_neg_sum[2];
+    checksum[7] = be_neg_sum[3];
 
-    for i in &be_neg_sum {
-        println!("{:X}", i)
-    }
-
-    let mut vec_be_sum = be_sum.to_vec();
-    let mut vec_be_neg_sum = be_neg_sum.to_vec();
-    vec_be_sum.append(&mut vec_be_neg_sum);
-    return vec_be_sum;
+    return checksum;
 }
 
-fn check_checksum(chksum_old: &[u8], chksum_new: &[u8]) -> bool {
-    if (chksum_old == chksum_new) {
-        return true;
-    } else { 
-        return false; 
-    }
-}
+fn fix_quest_log(quest_log_buffer: &mut [u8]) {
 
-// fn check_quest_log(quest_log_buffer: &[u8], quest_log_checksum: &[u8]) -> (bool, &[u8]) {
-//     // Get checksum and convert from vec<u8> to [u8] for comparison
-//     let mut new_checksum = &(build_checksum(quest_log_buffer)[..]);
+    let mut current_checksum = &quest_log_buffer[2700..2708];
+    let mut new_checksum = build_checksum(quest_log_buffer);
 
-//     // Compare checksums
-//     let mut result = check_checksum(quest_log_checksum, &new_checksum);
-
-//     println!("Checksum: {:?}", &new_checksum);
-//     println!("Equivalent?: {:?}", &result);
-
-//     return result, &new_checksum;
-// }
-
-fn check_quest_log<'a>(quest_log_buffer: &'a [u8], quest_log_checksum: &'a [u8]) -> (bool, &'a [u8]) {
-    // Get checksum and convert from vec<u8> to [u8] for comparison
-    let mut new_checksum = &(build_checksum(quest_log_buffer)[..]);
+    // Debug
+    println!("Old checksum: {:?}", &current_checksum);
+    println!("New checksum: {:?}", &new_checksum);
 
     // Compare checksums
-    let mut result = check_checksum(quest_log_checksum, &new_checksum);
+    {
+        if &current_checksum == &new_checksum {
+            // do nothing
+        } else { 
+            quest_log_buffer[2700] = new_checksum[0];
+            quest_log_buffer[2701] = new_checksum[1];
+            quest_log_buffer[2702] = new_checksum[2];
+            quest_log_buffer[2703] = new_checksum[3];
+            quest_log_buffer[2704] = new_checksum[4];
+            quest_log_buffer[2705] = new_checksum[5];
+            quest_log_buffer[2706] = new_checksum[6];
+            quest_log_buffer[2707] = new_checksum[7];
+        }
+    }
 
-    println!("Checksum: {:?}", &new_checksum);
-    println!("Equivalent?: {:?}", &result);
-
-    return (result, &new_checksum);
+    println!("Fixed: {:?}", &quest_log_buffer[2700..2708]);
 }
